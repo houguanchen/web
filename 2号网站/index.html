@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>侯冠辰强化学习锅炉优化 (v5.0 深度解析版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+          }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .nav-link { transition: all 0.2s ease-in-out; border-left: 4px solid transparent; }
+        .nav-link.active { background-color: #eef2ff; color: #3730a3; border-left-color: #4f46e5; font-weight: 600; }
+        .nav-link:not(.active):hover { background-color: #f1f5f9; }
+        .nav-header { font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.75rem 1rem; margin-top: 0.5rem; }
+        .card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        h2 { font-size: 2.25rem; font-weight: 800; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        h3 { font-size: 1.5rem; font-weight: 700; color: #334155; margin-top: 2rem; margin-bottom: 1rem; }
+        h4 { font-size: 1.25rem; font-weight: 600; }
+        p, ul, li { line-height: 1.75; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #4f46e5; cursor: pointer; border-radius: 50%; box-shadow: 0 0 0 3px #fff, 0 0 0 4px #4f46e5; transition: transform 0.1s ease-in-out; }
+        .slider:active::-webkit-slider-thumb { transform: scale(1.2); }
+        .slider::-moz-range-thumb { width: 20px; height: 20px; background: #4f46e5; cursor: pointer; border-radius: 50%; }
+        
+        /* Shared Flame Styles */
+        .flame-visual { position: absolute; bottom: 0; left: 50%; transform-origin: bottom center; width: 60%; margin-left: -30%; background: linear-gradient(to top, #ffde00, #ff8c00, rgba(255,140,0,0)); border-radius: 50% 50% 10% 10% / 100% 100% 20% 20%; transition: all 0.4s ease-in-out; animation: flicker-animation 0.3s infinite alternate; }
+        #boiler-visual-container, #boiler-visual-container-ch6 { box-shadow: inset 0 0 15px rgba(0,0,0,0.5); border: 3px solid #475569; }
+        @keyframes flicker-animation { 0% { transform: scaleY(1) skewX(0deg); opacity: 0.9; } 50% { transform: scaleY(0.98) skewX(2deg); opacity: 1; } 100% { transform: scaleY(1.02) skewX(-2deg); opacity: 0.95; } }
+
+        /* Bellman Grid Styles */
+        #bellman-canvas { cursor: pointer; }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 10px 15px rgba(79, 70, 229, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); } }
+        .pulse-effect { animation: pulse 0.6s ease-out; }
+
+        .deployment-step { transition: all 0.3s ease; border-left-width: 4px; border-color: transparent; }
+        .deployment-step.active { border-color: #4f46e5; background-color: #eef2ff; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex-shrink-0">
+            <div class="p-5 border-b border-slate-200">
+                <h1 class="text-2xl font-bold text-indigo-700">RL锅炉优化</h1>
+                <p class="text-sm text-slate-500 mt-1">学习与实验平台 (v5.0 深度解析版)</p>
+            </div>
+            <nav id="main-nav" class="p-2 space-y-1 overflow-y-auto" style="height: calc(100vh - 89px);">
+                <div class="nav-header">第一部分：基础篇</div>
+                <a href="#chapter1" data-view="chapter1" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">📖</span> 第1章: 锅炉系统原理</a>
+                <a href="#chapter2" data-view="chapter2" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">🧰</span> 第2章: 强化学习世界观</a>
+                
+                <div class="nav-header">第二部分：核心算法</div>
+                <a href="#chapter3" data-view="chapter3" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">🎭</span> 第3章: 演员-评论家架构</a>
+                <a href="#chapter4" data-view="chapter4" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">🔒</span> 第4章: PPO算法详解</a>
+                <a href="#chapter5" data-view="chapter5" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">🧭</span> 第5章: SAC算法详解</a>
+
+                <div class="nav-header">第三部分：实践篇</div>
+                <a href="#chapter6" data-view="chapter6" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">📐</span> 第6章: CMDP构建实验室</a>
+                <a href="#chapter7" data-view="chapter7" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">🤖</span> 第7章: 构建数字孪生</a>
+                <a href="#chapter8" data-view="chapter8" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">🧪</span> 第8章: 训练实验与调试</a>
+
+                <div class="nav-header">第四部分：部署篇</div>
+                <a href="#chapter9" data-view="chapter9" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">🚢</span> 第9章: 三阶段安全部署</a>
+                <a href="#chapter10" data-view="chapter10" class="nav-link flex items-center p-3 rounded-lg font-medium text-slate-700"><span class="mr-3 text-lg">展望</span> 第10章: 总结与未来</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-8 bg-slate-100 overflow-y-auto">
+            
+            <section id="chapter1" class="content-section">
+                <h2>第1章: 锅炉系统原理</h2>
+                <p class="text-lg text-slate-600 mb-6">在应用任何高级算法之前，必须对被控对象——锅炉，有深刻的物理和工程理解。本章将带您深入了解锅炉背后的核心矛盾，并通过一个进化版的互动沙箱，让您亲手感受在动态工况下控制锅炉的挑战。</p>
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold">动态工况锅炉沙箱</h3>
+                    <p class="text-slate-600 mb-6">我们引入了“锅炉负荷”作为关键的外部扰动。您的任务是在不同负荷下，通过调节控制变量，使各项指标尽可能接近目标值。</p>
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <!-- Controls -->
+                        <div class="lg:col-span-2 bg-slate-50 p-6 rounded-lg">
+                            <h4 class="font-bold text-lg mb-4">🕹️ 控制与工况面板</h4>
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="load-slider" class="font-medium flex justify-between">锅炉负荷 (扰动): <span id="load-value" class="font-bold text-red-600">75</span>%</label>
+                                    <input type="range" id="load-slider" min="50" max="100" value="75" class="slider w-full">
+                                    <p class="text-xs text-slate-500 mt-1">模拟外部需求变化，直接影响燃烧效率和污染物生成基准。</p>
+                                </div>
+                                <div class="border-t pt-4">
+                                    <label for="air-total-slider" class="font-medium flex justify-between">总风量 (动作): <span id="air-total-value">75</span>%</label>
+                                    <input type="range" id="air-total-slider" min="50" max="100" value="75" class="slider w-full">
+                                </div>
+                                <div>
+                                    <label for="burner-tilt-slider" class="font-medium flex justify-between">燃烧器摆角 (动作): <span id="burner-tilt-value">0</span>°</label>
+                                    <input type="range" id="burner-tilt-slider" min="-15" max="15" value="0" class="slider w-full">
+                                </div>
+                                <div>
+                                    <label for="o2-dist-slider" class="font-medium flex justify-between">燃尽风(OFA)占比 (动作): <span id="o2-dist-value">30</span>%</label>
+                                    <input type="range" id="o2-dist-slider" min="10" max="50" value="30" class="slider w-full">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Visuals & Metrics -->
+                        <div class="lg:col-span-3">
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="p-4 rounded-lg bg-slate-700 flex flex-col items-center justify-center min-h-[300px]">
+                                    <h4 class="font-bold text-lg mb-2 text-white">🔥 炉膛火焰</h4>
+                                    <div id="boiler-visual-container" class="w-48 h-64 bg-slate-800 rounded-t-lg relative overflow-hidden"><div id="flame-visual" class="flame-visual"></div></div>
+                                </div>
+                                <div class="p-4 rounded-lg bg-slate-100 flex flex-col justify-between">
+                                    <h4 class="font-bold text-lg mb-4">📈 关键指标</h4>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="font-medium flex justify-between">氮氧化物 (NOx) <span class="text-sm text-gray-500">目标: &lt;50</span></label>
+                                            <div class="w-full bg-slate-200 rounded-full h-4"><div id="nox-meter-fill" class="bg-red-500 h-4 rounded-full transition-all duration-300"></div></div>
+                                        </div>
+                                        <div>
+                                            <label class="font-medium flex justify-between">一氧化碳 (CO) <span class="text-sm text-gray-500">目标: &lt;40</span></label>
+                                            <div class="w-full bg-slate-200 rounded-full h-4"><div id="co-meter-fill" class="bg-amber-500 h-4 rounded-full transition-all duration-300"></div></div>
+                                        </div>
+                                        <div>
+                                            <label class="font-medium flex justify-between">锅炉热效率 <span class="text-sm text-gray-500">目标: &gt;93%</span></label>
+                                            <div class="text-right"><span id="efficiency-value" class="text-2xl font-bold text-green-600">92.50</span> %</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-6 mt-6">
+                    <h3 class="text-xl font-bold">燃烧化学与污染物生成机理</h3>
+                    <p class="text-slate-600 mb-4">锅炉优化的核心在于理解和控制复杂的燃烧化学过程。主要污染物NOx和CO的生成与燃烧条件（温度、氧浓度）密切相关。</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="p-4 bg-red-50 rounded-lg border-l-4 border-red-400">
+                            <h4 class="font-bold text-red-800">氮氧化物 (NOx) 的生成</h4>
+                            <p class="text-sm mt-2">NOx主要在高温富氧条件下生成，主要来源有三种：</p>
+                            <ul class="list-disc list-inside text-sm mt-2 space-y-1">
+                                <li><strong>热力型NOx</strong>: 空气中的$N_2$在高温（>1300°C）下被氧化。$N_2 + O_2 \leftrightarrow 2NO$。这是NOx最主要的来源。</li>
+                                <li><strong>燃料型NOx</strong>: 煤中的氮化合物在燃烧过程中氧化生成。</li>
+                                <li><strong>瞬时型NOx</strong>: 燃料在富燃区裂解的碳氢自由基与空气中$N_2$反应生成。</li>
+                            </ul>
+                            <p class="text-sm mt-2"><b>控制策略</b>：降低燃烧区峰值温度和氧浓度，例如采用空气分级燃烧（OFA技术）。</p>
+                        </div>
+                        <div class="p-4 bg-amber-50 rounded-lg border-l-4 border-amber-400">
+                            <h4 class="font-bold text-amber-800">一氧化碳 (CO) 的生成</h4>
+                            <p class="text-sm mt-2">CO是燃料不完全燃烧的产物。当氧气供应不足或燃烧温度过低时，碳无法完全氧化为$CO_2$。</p>
+                            <p class="text-sm mt-2">$2C + O_2 \rightarrow 2CO$</p>
+                            <p class="text-sm mt-2">CO不仅是污染物，也代表了化学能的浪费，会直接降低锅炉的热效率。</p>
+                            <p class="text-sm mt-2"><b>控制策略</b>：保证充足的氧气和足够高的燃烧温度，但这又与控制NOx的策略相矛盾，形成了核心的优化难题。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-6 mt-6">
+                    <h3 class="text-xl font-bold">核心矛盾：帕累托最优前沿</h3>
+                    <p class="text-slate-600 mb-6">锅炉优化的本质是在多个冲突目标（如高效率 vs 低排放）之间寻找最佳平衡点。在多目标优化中，这个最佳平衡点的集合被称为“帕累托最优前沿”。下图展示了热效率与NOx排放之间的关系，请尝试通过调节控制变量，让您的“当前工作点”尽可能地接近左上方的“帕累托前沿”虚线。</p>
+                    <div class="p-4 bg-slate-50 rounded-lg">
+                        <canvas id="pareto-chart" height="120"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="chapter2" class="content-section">
+                <h2>第2章: 强化学习世界观</h2>
+                <p class="text-lg text-slate-600 mb-6">本章将通过一个全新的交互式模拟器，为您揭示驱动所有价值学习算法的心脏——贝尔曼方程。您将亲手触发价值的迭代，见证一个智能体如何从零开始“理解”它的世界。</p>
+                <div class="card p-6 mb-6">
+                     <h3 class="text-xl font-bold">2.1 “智能体-环境”循环与MDP</h3>
+                     <p class="text-slate-600 mb-4">所有强化学习问题都可以抽象为“智能体（Agent）”与“环境（Environment）”的持续互动。这个过程在数学上被建模为**马尔可夫决策过程 (Markov Decision Process, MDP)**，由五元组 $(S, A, P, R, \gamma)$ 定义。</p>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold">2.2 交互式贝尔曼价值迭代</h3>
+                    <p class="text-slate-600 mb-4">下面的网格世界代表一个简化环境。智能体的目标是从起点(S)到达终点(🏆)，同时避开危险(☠️)。每个格子的数字代表其当前的状态价值 $V(s)$。请点击“迭代一步”按钮，观察价值是如何根据贝尔曼方程 $V(s) \leftarrow R(s) + \gamma \max_{a} V(s')$ 进行更新和传播的。随着迭代次数增加，智能体的最优策略（箭头）将自然浮现。</p>
+                    <div class="flex flex-col md:flex-row gap-6 items-center">
+                        <div class="flex-shrink-0">
+                            <canvas id="bellman-canvas" width="400" height="400" class="border rounded-lg bg-white"></canvas>
+                        </div>
+                        <div class="space-y-4">
+                            <button id="iterate-bellman-btn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors">迭代一步 (Step)</button>
+                            <button id="reset-bellman-btn" class="w-full bg-slate-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-600 transition-colors">重置 (Reset)</button>
+                            <div class="text-sm p-4 bg-slate-50 rounded-lg">
+                                <p><strong>迭代次数:</strong> <span id="bellman-iteration-count">0</span></p>
+                                <p><strong>折扣因子 $\gamma$:</strong> 0.9</p>
+                                <p><strong>奖励:</strong> 🏆: +1, ☠️: -1, 其他: 0</p>
+                            </div>
+                            <div id="bellman-update-info" class="text-sm text-center font-mono h-8"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="chapter3" class="content-section">
+                <h2>第3章: 演员-评论家架构</h2>
+                <p class="text-lg text-slate-600 mb-6">现代强化学习算法大多采用演员-评论家（Actor-Critic）架构。它巧妙地结合了策略学习和价值学习的优点，是理解PPO、SAC等高级算法的基础。本次更新将更清晰地展示“优势函数”在其中的关键作用。</p>
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold">动态演示：信息与优势函数流动过程</h3>
+                    <p class="text-slate-600 mb-4">点击播放，观察信息流。特别注意，当“评论家”完成评估后，它不仅会产生用于自身更新的TD-Error，还会计算出**优势函数 A(s,a)**，这个信号是指导“演员”更新方向的核心依据。</p>
+                    <div class="text-center mb-4"><button id="play-ac-viz" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors">▶️ 播放流程</button></div>
+                    <div id="ac-viz-explanation" class="text-center font-semibold text-slate-700 h-10 mb-2"></div>
+                    <svg id="ac-viz-svg" viewBox="0 0 400 300" class="w-full"></svg>
+                </div>
+            </section>
+
+            <section id="chapter4" class="content-section">
+                <h2>第4章: PPO算法详解</h2>
+                <p class="text-lg text-slate-600 mb-6">近端策略优化(PPO)以其卓越的稳定性著称。其核心思想是通过一个巧妙的“裁剪”机制，将策略更新限制在一个可信的“信任域”内。现在，您可以亲手调节这个信任域的大小。</p>
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold">交互式理解：可调节的信任域裁剪</h3>
+                    <p class="text-slate-600 mb-4">请拖动下方的 $\epsilon$ 滑块来调整信任域的大小，并点击按钮切换“好/坏动作”情景，观察目标函数（蓝色实线）如何被裁剪边界（红色虚线）所限制。</p>
+                    <div class="flex justify-center items-center gap-6 mb-4">
+                        <button id="ppo-toggle-advantage" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors">切换到 "坏动作" ($\hat{A}_t < 0$)</button>
+                        <div class="w-64">
+                             <label for="epsilon-slider" class="font-medium flex justify-between">裁剪范围 $\epsilon$: <span id="epsilon-value">0.2</span></label>
+                             <input type="range" id="epsilon-slider" min="0.05" max="0.5" step="0.01" value="0.2" class="slider w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                    <canvas id="ppo-canvas" class="w-full h-64 bg-slate-100 border rounded-lg"></canvas>
+                    <p id="ppo-explanation" class="text-center mt-2 text-slate-600 font-medium"></p>
+                </div>
+                 <div class="card p-6 mt-6">
+                    <h3 class="text-xl font-bold">PPO核心组件深度解析</h3>
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <h4 class="font-bold text-blue-800">裁剪代理目标 (Clipped Surrogate Objective)</h4>
+                             <p class="text-sm mt-2">PPO的核心创新。通过概率比$r_t(\theta)$和优势函数$\hat{A}_t$来构建目标，并用clip函数限制更新幅度，确保学习过程的稳定。</p>
+                             <div class="p-2 my-2 bg-slate-100 rounded text-center">$$L^{CLIP}(\theta) = \mathbb{E}_t \left[ \min\left(r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right) \right]$$</div>
+                        </div>
+                        <div class="p-4 bg-green-50 rounded-lg">
+                            <h4 class="font-bold text-green-800">广义优势估计 (Generalized Advantage Estimation, GAE)</h4>
+                            <p class="text-sm mt-2">PPO通常使用GAE来计算优势函数$\hat{A}_t$，它通过超参数$\lambda$在无偏（高方差）的蒙特卡洛估计和有偏（低方差）的TD(0)估计之间进行权衡，以获得更稳定和准确的优势信号。</p>
+                            <div class="p-2 my-2 bg-slate-100 rounded text-center">$$\hat{A}_t^{GAE} = \sum_{l=0}^{\infty} (\gamma\lambda)^l \delta_{t+l} \quad \text{其中 } \delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$$</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="chapter5" class="content-section">
+                <h2>第5章: SAC算法详解</h2>
+                <p class="text-lg text-slate-600 mb-6">软演员-评论家(SAC)通过“最大熵”框架，在最大化奖励的同时鼓励探索。本次更新将策略分布与奖励函数叠加显示，让您更直观地理解探索与利用的权衡。</p>
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold">交互式理解：探索与利用的权衡</h3>
+                    <p class="text-slate-600 mb-4">下图中，灰色曲线代表不同动作的潜在奖励（奖励地形），蓝色区域是智能体的动作策略分布。请调整温度参数 $\alpha$，观察策略是如何在“探索更广阔的奖励地形”和“聚焦于最高奖励的山峰”之间变化的。</p>
+                    <canvas id="sac-canvas" class="w-full h-64 bg-slate-100 border rounded-lg"></canvas>
+                    <div class="mt-4">
+                        <label for="alpha-slider" class="font-medium flex justify-between">温度 $\alpha$: <span id="alpha-value">0.20</span></label>
+                        <input type="range" id="alpha-slider" min="0.01" max="1.0" step="0.01" value="0.2" class="slider w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                     <p id="sac-explanation" class="text-center mt-2 text-slate-600 font-medium">当前 $\alpha$ 值适中，在“探索”与“利用”之间取得平衡。</p>
+                </div>
+                <div class="card p-6 mt-6">
+                    <h3 class="text-xl font-bold">SAC核心组件深度解析</h3>
+                    <div class="space-y-4">
+                        <div class="p-4 bg-purple-50 rounded-lg">
+                            <h4 class="font-bold text-purple-800">双Q网络 (Twin Q-Critics) 与目标网络</h4>
+                             <p class="text-sm mt-2">为缓解价值函数过高估计的问题，SAC使用两个独立的Q网络($Q_{\theta_1}, Q_{\theta_2}$)，并在计算目标价值时取两者的较小值。同时，使用目标网络(Target Networks)来稳定训练过程。</p>
+                             <div class="p-2 my-2 bg-slate-100 rounded text-center">$$y = r + \gamma ( \min_{i=1,2} Q_{\theta_i'}(s', a') - \alpha \log \pi(a'|s') )$$</div>
+                        </div>
+                        <div class="p-4 bg-teal-50 rounded-lg">
+                            <h4 class="font-bold text-teal-800">带压缩函数的随机策略与熵正则化</h4>
+                            <p class="text-sm mt-2">SAC的策略(演员)通常输出一个高斯分布，并通过`tanh`函数将动作压缩到有限区间。这要求在计算策略损失时对概率进行相应调整。最大化策略熵是其核心目标，由温度参数$\alpha$控制。</p>
+                             <div class="p-2 my-2 bg-slate-100 rounded text-center">$$J_\pi(\phi) = \mathbb{E}_{s_t \sim D} \left[ \mathbb{E}_{a_t \sim \pi_\phi} [\alpha \log(\pi_\phi(a_t|s_t)) - Q_\theta(s_t, a_t)] \right]$$</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="chapter6" class="content-section">
+                 <h2>第6章: CMDP构建实验室</h2>
+                <p class="text-lg text-slate-600 mb-6">欢迎来到项目的技术核心。将一个复杂的工业问题转化为机器可以理解的数学模型——约束马尔可夫决策过程（CMDP），是决定项目成败最关键的一步。在这个实验室里，请您扮演AI工程师，亲手构建这个模型。</p>
+                <div class="card p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div id="cmdp-builder-panel">
+                            <h3 class="text-xl font-bold">1. 构建您的CMDP模型</h3>
+                            <p class="text-slate-500 mb-6">请从下方勾选您希望纳入模型的变量。您的每一次选择，都会在右侧的“实时预览”中激活对应的模块。</p>
+                            <div class="mb-4"><h4 class="font-bold text-lg mb-2 text-indigo-700">S - 选择状态 (State)</h4><div class="space-y-2 text-sm p-4 bg-slate-50 rounded-lg"><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-nox-meter"> 氮氧化物(NOx)浓度</label><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-co-meter"> 一氧化碳(CO)浓度</label><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-efficiency-meter"> 锅炉热效率</label><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-temp-meter"> 关键区域壁温</label></div></div>
+                            <div class="mb-4"><h4 class="font-bold text-lg mb-2 text-green-700">A - 选择动作 (Action)</h4><div class="space-y-2 text-sm p-4 bg-slate-50 rounded-lg"><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-air-slider"> 总风量调节</label><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-tilt-slider"> 燃烧器摆角调节</label><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-ofa-slider"> 燃尽风(OFA)占比调节</label></div></div>
+                            <div class="mb-4"><h4 class="font-bold text-lg mb-2 text-amber-600">R - 定义奖励 (Reward)</h4><div class="space-y-2 text-sm p-4 bg-slate-50 rounded-lg"><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-efficiency-meter" data-type="reward"> 奖励：提升热效率</label><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-nox-meter" data-type="reward"> 奖励：降低NOx排放</label></div></div>
+                            <div class="mb-4"><h4 class="font-bold text-lg mb-2 text-red-700">C - 定义成本 (Cost/Constraint)</h4><div class="space-y-2 text-sm p-4 bg-slate-50 rounded-lg"><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-temp-meter" data-type="cost"> 约束：壁温不超过安全阈值</label><label class="flex items-center"><input type="checkbox" class="mr-2 cmdp-checkbox" data-target="component-co-meter" data-type="cost"> 约束：CO浓度不超过限制</label></div></div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold">2. 实时预览与交互</h3>
+                            <p class="text-slate-500 mb-6">这里是您构建的虚拟锅炉。所有激活的模块都可以进行交互。</p>
+                            <div class="p-4 rounded-lg bg-slate-700 flex flex-col items-center justify-start min-h-[500px]">
+                                <h4 class="font-bold text-lg mb-2 text-white">🔥 虚拟锅炉实时视图</h4>
+                                <div id="boiler-visual-container-ch6" class="w-48 h-64 bg-slate-800 rounded-t-lg relative overflow-hidden mt-4"><div id="flame-visual-ch6" class="flame-visual"></div></div>
+                                <div id="dashboard-ch6" class="w-full mt-6 space-y-4 p-2">
+                                    <div id="component-nox-meter" class="preview-component hidden"><label class="font-medium text-white text-sm">氮氧化物 (NOx)</label><div class="w-full bg-slate-500 rounded-full h-3"><div id="nox-meter-fill-ch6" class="bg-red-500 h-3 rounded-full"></div></div></div>
+                                    <div id="component-co-meter" class="preview-component hidden"><label class="font-medium text-white text-sm">一氧化碳 (CO)</label><div class="w-full bg-slate-500 rounded-full h-3"><div id="co-meter-fill-ch6" class="bg-amber-500 h-3 rounded-full"></div></div></div>
+                                    <div id="component-temp-meter" class="preview-component hidden"><label class="font-medium text-white text-sm">关键区域壁温</label><div class="w-full bg-slate-500 rounded-full h-3"><div id="temp-meter-fill-ch6" class="bg-orange-500 h-3 rounded-full"></div></div></div>
+                                    <div id="component-efficiency-meter" class="preview-component hidden"><label class="font-medium text-white text-sm">锅炉热效率</label><div class="text-right"><span id="efficiency-value-ch6" class="text-xl font-bold text-green-400">92.50</span> %</div></div>
+                                </div>
+                            </div>
+                            <div id="controls-ch6" class="mt-4 p-4 bg-white rounded-lg space-y-4">
+                                <div id="component-air-slider" class="preview-component hidden"><label for="air-slider-ch6" class="font-medium flex justify-between text-sm">总风量: <span id="air-value-ch6">75</span>%</label><input type="range" id="air-slider-ch6" min="50" max="100" value="75" class="slider w-full"></div>
+                                <div id="component-tilt-slider" class="preview-component hidden"><label for="tilt-slider-ch6" class="font-medium flex justify-between text-sm">燃烧器摆角: <span id="tilt-value-ch6">0</span>°</label><input type="range" id="tilt-slider-ch6" min="-15" max="15" value="0" class="slider w-full"></div>
+                                <div id="component-ofa-slider" class="preview-component hidden"><label for="ofa-slider-ch6" class="font-medium flex justify-between text-sm">燃尽风(OFA)占比: <span id="ofa-value-ch6">30</span>%</label><input type="range" id="ofa-slider-ch6" min="10" max="50" value="30" class="slider w-full"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 pt-4 border-t"><h3 class="text-xl font-bold">3. 您生成的CMDP模型</h3>
+                         <div id="cmdp-summary-ch6" class="text-slate-600 text-sm grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-indigo-50 rounded-lg mt-4">
+                             <div><strong>状态:</strong><ul id="summary-State-ch6" class="list-disc list-inside"></ul></div>
+                             <div><strong>动作:</strong><ul id="summary-Action-ch6" class="list-disc list-inside"></ul></div>
+                             <div><strong>奖励:</strong><ul id="summary-Reward-ch6" class="list-disc list-inside"></ul></div>
+                             <div><strong>成本/约束:</strong><ul id="summary-Cost-ch6" class="list-disc list-inside"></ul></div>
+                         </div>
+                    </div>
+                </div>
+            </section>
+            <section id="chapter7" class="content-section">
+                <h2>第7章: 构建数字孪生</h2>
+                <p class="text-lg text-slate-600 mb-6">强化学习需要在一个环境中进行海量的试错探索，这在真实的、昂贵的、且有安全风险的工业设备上是不可行的。因此，构建一个高保真的仿真环境——即“数字孪生”——是项目成功的先决条件。</p>
+                <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-bold">什么是数字孪生？</h3>
+                    <p>数字孪生是真实物理系统的虚拟副本。它利用历史运行数据，通过机器学习（如神经网络）或机理建模，学习并模拟真实锅炉的动态响应。当我们在虚拟环境中“调节风门”时，数字孪生会预测出真实的锅炉将会发生的温度、压力、污染物等一系列变化。</p>
+                </div>
+                <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-bold">“仿真到现实”的鸿沟 (Sim-to-Real Gap)</h3>
+                    <p class="mb-4">任何仿真都无法100%复刻现实。模型与现实之间的差异被称为Sim-to-Real Gap。产生这个鸿沟的原因包括：</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>未建模的动态</strong>：比如管道积灰、设备磨损等缓慢变化的过程。</li>
+                        <li><strong>传感器噪声</strong>：真实传感器的读数总是有波动的。</li>
+                        <li><strong>外部扰动</strong>：例如煤炭质量的批次差异、环境温湿度的变化等。</li>
+                    </ul>
+                    <p class="mt-4">一个在“完美”仿真环境中训练出的策略，到现实中很可能会“水土不服”。因此，缩小这个鸿沟至关重要。常用的一种技术是**领域随机化 (Domain Randomization)**，即在训练时，故意给仿真环境增加各种随机噪声（如模拟传感器误差、随机化煤炭热值），让AI提前适应一个“不完美”的世界，从而增强其在真实环境中的鲁棒性。</p>
+                </div>
+                 <div class="card p-6">
+                    <h3 class="text-xl font-bold">交互演示：模型质量与鲁棒性</h3>
+                    <p class="text-slate-600 mb-4">拖动滑块模拟模型与现实的匹配程度。黑色实线代表“真实世界”的某个参数变化，蓝色虚线代表数字孪生模型的预测。可以看到，即使是高质量的模型（98%），与真实系统之间也永远存在微小的差距（Gap）。</p>
+                    <canvas id="sim-real-canvas" class="w-full h-64 bg-slate-100 border rounded-lg"></canvas>
+                    <div><label for="model-quality-slider" class="font-medium flex justify-between">模型-现实匹配度: <span id="model-quality-value">50</span>%</label><input type="range" id="model-quality-slider" min="10" max="98" step="1" value="50" class="slider w-full h-2 bg-slate-200 rounded-lg"></div>
+                </div>
+            </section>
+            <section id="chapter8" class="content-section">
+                <h2>第8章: 训练实验与调试</h2>
+                <p class="text-lg text-slate-600 mb-8">欢迎来到RL训练实验室！为了更贴合主题，我们将经典的“寻宝”例子升级为“锅炉状态空间寻优”。智能体的目标是在简化的（温度-压力）状态网格中，从“冷态”出发，尽快到达“最优工作点”，同时必须避开“超温/超压”的危险区域。</p>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 card p-6">
+                        <h3 class="text-xl font-bold">参数调节</h3>
+                        <div class="space-y-4">
+                            <div><label for="gamma" class="font-medium flex justify-between">远见程度 ($\gamma$): <span id="gamma-value">0.9</span></label><input type="range" id="gamma" min="0.5" max="0.99" step="0.01" value="0.9" class="slider w-full"><p class="text-xs text-slate-500">值越高，AI越关心长期回报。</p></div>
+                            <div><label for="lr" class="font-medium flex justify-between">学习率 ($\alpha_{lr}$): <span id="lr-value">0.1</span></label><input type="range" id="lr" min="0.01" max="0.5" step="0.01" value="0.1" class="slider w-full"><p class="text-xs text-slate-500">值越高，AI学习速度越快，但可能不稳定。</p></div>
+                            <div><label for="epsilon" class="font-medium flex justify-between">探索率 ($\epsilon$): <span id="epsilon-value">0.2</span></label><input type="range" id="epsilon" min="0.05" max="1.0" step="0.05" value="0.2" class="slider w-full"><p class="text-xs text-slate-500">值越高，AI越倾向于探索未知。</p></div>
+                        </div>
+                        <button id="start-sim" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-colors">开始 / 重置训练</button>
+                    </div>
+                    <div class="lg:col-span-2 card p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h3 class="text-xl font-bold">锅炉状态空间 (策略可视化)</h3>
+                                <canvas id="rl-canvas" class="w-full bg-slate-50 border rounded-lg aspect-square"></canvas>
+                                 <div class="flex justify-around text-xs mt-2 flex-wrap"><span class="flex items-center"><div class="w-3 h-3 rounded-full bg-blue-500 mr-1"></div>智能体</span><span class="flex items-center"><div class="w-3 h-3 rounded-full bg-green-200 mr-1"></div>优良区域</span><span class="flex items-center"><div class="w-3 h-3 rounded-full bg-red-200 mr-1"></div>危险区域</span></div>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold">学习曲线 (平均奖励)</h3>
+                                <div class="w-full h-64 border rounded-lg p-2"><canvas id="rewardChart"></canvas></div>
+                                <div class="mt-2 text-center text-sm"><p>回合 (Episode): <span id="episode-counter">0</span></p><p>平均奖励 (Avg Reward): <span id="total-reward">0</span></p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="chapter9" class="content-section">
+                <h2>第9章: 三阶段安全部署</h2>
+                <p class="text-lg text-slate-600 mb-6">将AI从虚拟世界安全地引入现实工厂，是一个比算法本身更重要的工程挑战。我们采用三阶段策略，核心是建立信任、管理风险，确保万无一失。</p>
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <div class="w-full lg:w-1/3 space-y-2">
+                        <div id="step1" class="p-4 rounded-lg cursor-pointer deployment-step" onclick="selectStep(1)"><h4 class="font-bold text-lg">阶段一：建议模式</h4><p class="text-sm">AI作为“影子顾问”，零风险验证性能。</p></div>
+                        <div id="step2" class="p-4 rounded-lg cursor-pointer deployment-step" onclick="selectStep(2)"><h4 class="font-bold text-lg">阶段二：监督控制</h4><p class="text-sm">AI调整PID设定值，利用现有系统作为安全网。</p></div>
+                        <div id="step3" class="p-4 rounded-lg cursor-pointer deployment-step" onclick="selectStep(3)"><h4 class="font-bold text-lg">阶段三：直接控制</h4><p class="text-sm">AI直接输出指令，但须通过最终“安全层”过滤。</p></div>
+                    </div>
+                    <div id="step-content" class="flex-1 card p-6 min-h-[300px]">
+                        <!-- Content will be injected by JS -->
+                    </div>
+                </div>
+            </section>
+            <section id="chapter10" class="content-section">
+                <h2>第10章: 总结与未来</h2>
+                <p class="text-lg text-slate-600 mb-6">我们系统性地探讨了从理论到实践的完整框架。成功实施的关键在于将先进算法与深厚的领域知识相结合，并始终将安全置于首位。</p>
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold">未来研究方向</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="p-4 bg-slate-50 rounded-lg hover:shadow-md transition"><h4 class="font-bold text-lg">多智能体 (MARL)</h4><p class="text-sm mt-2">将每个燃烧器或风门组视为独立智能体，学习协同配合，实现比单智能体更精细的火焰形状控制。</p></div>
+                        <div class="p-4 bg-slate-50 rounded-lg hover:shadow-md transition"><h4 class="font-bold text-lg">可解释性 (XAI)</h4><p class="text-sm mt-2">让AI不再是“黑箱”，能够解释其决策原因（如“因为检测到CO上升趋势，我选择增加上层风门”），从而增强人机信任。</p></div>
+                        <div class="p-4 bg-slate-50 rounded-lg hover:shadow-md transition"><h4 class="font-bold text-lg">迁移学习与终身学习</h4><p class="text-sm mt-2">将在A机组上训练好的模型，快速、低成本地适配到B机组。并且让模型能在上线后持续学习，适应设备老化等新情况。</p></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Global Variables & Selectors ---
+    const navLinks = document.querySelectorAll('.nav-link');
+    const contentSections = document.querySelectorAll('.content-section');
+    
+    let currentView = '';
+    // Use an object to manage animation frame IDs for different chapters to precisely control start/stop
+    let activeAnimationFrames = {};
+
+    // --- Core Navigation Function ---
+    function navigateTo(viewId) {
+        if (!viewId || currentView === viewId) return;
+
+        // --- Cleanup: Stop animations of the view being left ---
+        Object.values(activeAnimationFrames).forEach(id => {
+            if (id) cancelAnimationFrame(id);
+        });
+        activeAnimationFrames = {}; // Clear animation ID records
+        
+        if(window.acAnimationTimeoutId) clearTimeout(window.acAnimationTimeoutId);
+        if(window.bellmanIntervalId) clearInterval(window.bellmanIntervalId);
+        
+        currentView = viewId;
+        
+        navLinks.forEach(link => link.classList.toggle('active', link.dataset.view === viewId));
+        contentSections.forEach(section => section.classList.toggle('active', section.id === viewId));
+        
+        // --- Initialization: Start interactive modules for the new view ---
+        initializeInteractiveModules(viewId);
+    }
+    
+    // --- Initial Page Load ---
+    const initialView = window.location.hash ? window.location.hash.substring(1) : 'chapter1';
+    navigateTo(initialView);
+
+    // --- Event Binding ---
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const viewId = link.dataset.view;
+            navigateTo(viewId);
+            window.history.pushState(null, null, `#${viewId}`);
+        });
+    });
+
+    window.addEventListener('popstate', () => {
+        const viewId = window.location.hash ? window.location.hash.substring(1) : 'chapter1';
+        navigateTo(viewId);
+    });
+});
+
+// --- Central dispatcher for initializing all interactive modules ---
+function initializeInteractiveModules(viewId) {
+    // Make the animation frame manager globally accessible within this script's scope
+    window.activeAnimationFrames = window.activeAnimationFrames || {};
+    switch(viewId) {
+        case 'chapter1': initBoilerSandbox(); break;
+        case 'chapter2': initBellmanGrid(); break;
+        case 'chapter3': initActorCriticViz(); break;
+        case 'chapter4': initPpoCanvas(); break;
+        case 'chapter5': initSacCanvas(); break;
+        case 'chapter6': initCmdpLab(); break;
+        case 'chapter7': initSimRealCanvas(); break;
+        case 'chapter8': initSim(); break; 
+        case 'chapter9': selectStep(1); break;
+    }
+}
+    
+// --- JS Logic Implementation for Each Chapter ---
+
+/**
+ * Chapter 1: Evolved Boiler Sandbox with Dynamic Load and Pareto Front
+ */
+function initBoilerSandbox() {
+    const sliders = {
+        load: document.getElementById('load-slider'),
+        air: document.getElementById('air-total-slider'),
+        tilt: document.getElementById('burner-tilt-slider'),
+        ofa: document.getElementById('o2-dist-slider')
+    };
+    if (!sliders.load) return;
+
+    const values = {
+        load: document.getElementById('load-value'),
+        air: document.getElementById('air-total-value'),
+        tilt: document.getElementById('burner-tilt-value'),
+        ofa: document.getElementById('o2-dist-value')
+    };
+    const visuals = {
+        flame: document.getElementById('flame-visual'),
+        nox: document.getElementById('nox-meter-fill'),
+        co: document.getElementById('co-meter-fill'),
+        efficiency: document.getElementById('efficiency-value')
+    };
+    
+    const paretoCtx = document.getElementById('pareto-chart')?.getContext('2d');
+    let paretoChart;
+
+    function updateBoilerSimulation() {
+        const load = parseFloat(sliders.load.value);
+        const air = parseFloat(sliders.air.value);
+        const tilt = parseFloat(sliders.tilt.value);
+        const ofa = parseFloat(sliders.ofa.value);
+        
+        values.load.textContent = load.toFixed(0);
+        values.air.textContent = air.toFixed(0);
+        values.tilt.textContent = tilt.toFixed(0);
+        values.ofa.textContent = ofa.toFixed(0);
+
+        // More complex simulation model incorporating load
+        const load_factor = load / 100;
+        let nox_raw = (air * 1.2 - ofa * 1.5 + Math.abs(tilt) * 0.5) * (0.8 + load_factor * 0.4);
+        let co_raw = (150 - air + (Math.abs(air - 85) * 0.4)) * (0.9 + load_factor * 0.2);
+        let eff_base = 90.5 + load_factor * 2;
+        let eff_air = 1 - Math.abs(air - (80 + load_factor * 5)) / 50;
+        let eff_ofa = 1 - Math.abs(ofa - 35) / 40;
+        let efficiency_raw = eff_base + (eff_air * 1.5) + (eff_ofa * 1) - (co_raw / 150);
+
+        const nox = Math.max(10, Math.min(100, nox_raw));
+        const co = Math.max(5, Math.min(100, co_raw));
+        const efficiency = Math.max(88, Math.min(94.5, efficiency_raw));
+        
+        visuals.flame.style.height = `${(40 + (air / 100) * 60) * (0.8 + load_factor * 0.2)}%`;
+        visuals.flame.style.transform = `translateY(${tilt * -1.5}px) skewX(${tilt * -0.5}deg)`;
+        visuals.nox.style.width = `${nox}%`;
+        visuals.co.style.width = `${co}%`;
+        visuals.efficiency.textContent = efficiency.toFixed(2);
+
+        updateParetoChart(efficiency, nox);
+    }
+
+    function generateParetoFront() {
+        // Simplified generation of a plausible Pareto front
+        const front = [];
+        for (let eff = 94.5; eff >= 90; eff -= 0.1) {
+            let nox = 30 + Math.pow(94.5 - eff, 2) * 2;
+            nox += (Math.random() - 0.5) * 5; // add some noise
+            front.push({x: nox, y: eff});
+        }
+        return front.sort((a,b) => a.x - b.x);
+    }
+
+    function updateParetoChart(efficiency, nox) {
+        if (!paretoCtx) return;
+        
+        if (!paretoChart) {
+            const paretoFrontData = generateParetoFront();
+            paretoChart = new Chart(paretoCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: '帕累托最优前沿',
+                        data: paretoFrontData,
+                        borderColor: 'rgba(220, 38, 38, 0.5)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        showLine: true,
+                        fill: false,
+                    },{
+                        label: '当前工作点',
+                        data: [{x: nox, y: efficiency}],
+                        backgroundColor: 'rgb(79, 70, 229)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'NOx 排放 (值越低越好)' }, min: 20, max: 100 },
+                        y: { title: { display: true, text: '热效率 (%)' }, min: 88, max: 95 }
+                    },
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        } else {
+            paretoChart.data.datasets[1].data = [{x: nox, y: efficiency}];
+            paretoChart.update();
+        }
+    }
+
+    Object.values(sliders).forEach(slider => slider.addEventListener('input', updateBoilerSimulation));
+    updateBoilerSimulation();
+}
+
+
+/**
+ * Chapter 2: Interactive Bellman Value Iteration
+ */
+function initBellmanGrid() {
+    const canvas = document.getElementById('bellman-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const iterateBtn = document.getElementById('iterate-bellman-btn');
+    const resetBtn = document.getElementById('reset-bellman-btn');
+    const iterCountEl = document.getElementById('bellman-iteration-count');
+    const updateInfoEl = document.getElementById('bellman-update-info');
+
+    const GRID_SIZE = 5;
+    const GAMMA = 0.9;
+    const REWARDS = { goal: 1, trap: -1, step: 0 };
+    const goal = {x: 4, y: 4};
+    const traps = [{x: 2, y: 2}, {x: 1, y: 3}];
+    const walls = [{x: 3, y: 1}];
+
+    let values = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0));
+    let policy = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(-1));
+    let iterationCount = 0;
+
+    function reset() {
+        iterationCount = 0;
+        values = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0));
+        policy = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(-1));
+        iterCountEl.textContent = iterationCount;
+        updateInfoEl.textContent = '环境已重置。';
+        drawGrid();
+    }
+
+    function iterate() {
+        let newValues = JSON.parse(JSON.stringify(values));
+        let maxChange = 0;
+
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (isWall(x, y)) continue;
+                if (isTerminal(x, y)) {
+                    newValues[y][x] = (x === goal.x && y === goal.y) ? REWARDS.goal : REWARDS.trap;
+                    continue;
+                }
+
+                const actionValues = getActionValues(x, y);
+                const bestValue = Math.max(...actionValues);
+                newValues[y][x] = REWARDS.step + GAMMA * bestValue;
+                
+                maxChange = Math.max(maxChange, Math.abs(newValues[y][x] - values[y][x]));
+            }
+        }
+        values = newValues;
+        updatePolicy();
+        iterationCount++;
+        iterCountEl.textContent = iterationCount;
+        updateInfoEl.textContent = `V(s) 更新完成。最大变化量: ${maxChange.toFixed(3)}`;
+        drawGrid();
+    }
+    
+    function getActionValues(x, y) {
+        const actions = [[0, -1], [0, 1], [-1, 0], [1, 0]]; // U, D, L, R
+        return actions.map(([dx, dy]) => {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || isWall(nx, ny)) {
+                return values[y][x]; // Bump into wall, stay in place
+            }
+            return values[ny][nx];
+        });
+    }
+    
+    function updatePolicy() {
+         for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (isTerminal(x, y) || isWall(x, y)) continue;
+                const actionValues = getActionValues(x, y);
+                policy[y][x] = actionValues.indexOf(Math.max(...actionValues));
+            }
+        }
+    }
+
+    function isTerminal(x, y) { return (x === goal.x && y === goal.y) || traps.some(t => t.x === x && t.y === y); }
+    function isWall(x, y) { return walls.some(w => w.x === x && w.y === y); }
+
+    function drawGrid() {
+        const cellSize = canvas.width / GRID_SIZE;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const arrows = ['↑', '↓', '←', '→'];
+
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                const val = values[y][x];
+                const heat = (val - REWARDS.trap) / (REWARDS.goal - REWARDS.trap);
+                const r = Math.floor(255 * (1 - heat));
+                const g = Math.floor(255 * heat);
+                ctx.fillStyle = `rgb(${r}, ${g}, 100)`;
+                if (isWall(x, y)) ctx.fillStyle = '#555';
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                ctx.strokeStyle = '#ccc';
+                ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                if (isTerminal(x,y) || isWall(x,y)) {
+                    ctx.font = `${cellSize*0.6}px sans-serif`;
+                    ctx.fillStyle = '#fff';
+                    if(x === goal.x && y === goal.y) ctx.fillText('🏆', x * cellSize + cellSize/2, y * cellSize + cellSize/2);
+                    else if(isWall(x, y)) ctx.fillText('🧱', x * cellSize + cellSize/2, y * cellSize + cellSize/2);
+                    else ctx.fillText('☠️', x * cellSize + cellSize/2, y * cellSize + cellSize/2);
+                } else {
+                    ctx.fillStyle = '#000';
+                    ctx.font = `bold ${cellSize*0.25}px sans-serif`;
+                    ctx.fillText(val.toFixed(1), x * cellSize + cellSize/2, y * cellSize + cellSize/4);
+                    if(policy[y][x] !== -1) {
+                         ctx.font = `${cellSize*0.4}px sans-serif`;
+                         ctx.fillText(arrows[policy[y][x]], x * cellSize + cellSize/2, y * cellSize + cellSize*0.7);
+                    }
+                }
+            }
+        }
+    }
+    
+    iterateBtn.onclick = iterate;
+    resetBtn.onclick = reset;
+    reset();
+}
+
+/**
+ * Chapter 3: Actor-Critic Visualization with Advantage Function
+ */
+function initActorCriticViz() {
+    const playBtn = document.getElementById('play-ac-viz');
+    const explanationEl = document.getElementById('ac-viz-explanation');
+    const svgEl = document.getElementById('ac-viz-svg');
+    if (!playBtn) return;
+    
+    const vizHtml = `<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" /></marker><marker id="arrowhead-h" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316" /></marker></defs><g class="ac-label" id="label-state"><text x="50" y="25" text-anchor="middle" font-size="12">状态 S</text></g><g class="ac-node" id="node-state"><rect x="10" y="30" width="80" height="40" rx="5" fill="#fff" stroke="#9ca3af" stroke-width="2" /></g><path class="ac-arrow" id="arrow-to-actor" d="M95,50 C140,50 140,90 185,90" stroke="#9ca3af" stroke-width="2" fill="none" marker-end="url(#arrowhead)" /><g class="ac-label" id="label-actor"><text x="225" y="80" text-anchor="middle" font-size="12">演员 Actor</text></g><g class="ac-node" id="node-actor"><rect x="185" y="85" width="80" height="40" rx="20" fill="#eff6ff" stroke="#60a5fa" stroke-width="2" /></g><path class="ac-arrow" id="arrow-to-action" d="M225,130 Q225,150 225,170" stroke="#9ca3af" stroke-width="2" fill="none" marker-end="url(#arrowhead)" /><g class="ac-label" id="label-action"><text x="225" y="165" text-anchor="middle" font-size="12">动作 A</text></g><g class="ac-node" id="node-action"><rect x="185" y="170" width="80" height="40" rx="5" fill="#fff" stroke="#9ca3af" stroke-width="2" /></g><path class="ac-arrow" id="arrow-to-env" d="M180,190 C140,190 140,230 105,230" stroke="#9ca3af" stroke-width="2" fill="none" marker-end="url(#arrowhead)" /><g class="ac-label" id="label-env"><text x="65" y="220" text-anchor="middle" font-size="12">环境 Env</text></g><g class="ac-node" id="node-env"><rect x="25" y="225" width="80" height="40" rx="20" fill="#fff7ed" stroke="#fb923c" stroke-width="2" /></g><path class="ac-arrow" id="arrow-to-critic" d="M110,245 C160,245 250,245 295,245" stroke="#9ca3af" stroke-width="2" fill="none" marker-end="url(#arrowhead)" /><g class="ac-label" id="label-reward"><text x="200" y="265" text-anchor="middle" font-size="10">奖励 R, 新状态 S'</text></g><g class="ac-label" id="label-critic"><text x="340" y="220" text-anchor="middle" font-size="12">评论家 Critic</text></g><g class="ac-node" id="node-critic"><rect x="300" y="225" width="80" height="40" rx="20" fill="#f0fdf4" stroke="#4ade80" stroke-width="2" /></g><path class="ac-arrow" id="arrow-critic-to-actor" d="M340,220 C340,150 270,150 265,125" stroke="#9ca3af" stroke-width="2" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="5,5" /><g class="ac-label" id="label-update"><text x="310" y="170" text-anchor="middle" font-weight="bold" font-size="12" fill="transparent">优势 A(s,a)</text></g>`;
+    svgEl.innerHTML = vizHtml;
+    
+    playBtn.onclick = () => {
+        if (playBtn.disabled) return;
+        playBtn.disabled = true;
+        if(window.acAnimationTimeoutId) clearTimeout(window.acAnimationTimeoutId);
+        let i = 0;
+        const steps=[{el:["node-state","label-state"],text:"1. 智能体观察到当前状态 S"},{el:["arrow-to-actor"],text:"2. 状态 S 被输入给演员 (Actor)"},{el:["node-actor","label-actor"],text:"3. 演员根据策略，选择一个动作 A"},{el:["arrow-to-action"],text:"4. 演员输出动作 A"},{el:["node-action","label-action"],text:"5. 动作 A 准备施加于环境"},{el:["arrow-to-env"],text:"6. 环境接收动作"},{el:["node-env","label-env"],text:"7. 环境发生改变，返回新状态S'和奖励R"},{el:["arrow-to-critic","label-reward"],text:"8. S, A, R, S' 被送往评论家进行评估"},{el:["node-critic","label-critic"],text:"9. 评论家计算TD目标和当前Q值，得出优势函数 A(s,a)"},{el:["arrow-critic-to-actor","label-update"],text:"10. 优势函数 A(s,a) 指导演员更新策略 (若A>0, 增加该动作概率)"}];
+        const elements={nodes:Array.from(svgEl.querySelectorAll(".ac-node")),labels:Array.from(svgEl.querySelectorAll(".ac-label")),arrows:Array.from(svgEl.querySelectorAll(".ac-arrow")),updateLabel:svgEl.querySelector("#label-update")};
+        function resetHighlights(){elements.nodes.forEach(e=>e.classList.remove("highlight")),elements.labels.forEach(e=>e.classList.remove("highlight")),elements.arrows.forEach(e=>{e.style.stroke="#9ca3af",e.setAttribute("marker-end","url(#arrowhead)")}),elements.updateLabel.style.fill="transparent",explanationEl.textContent=""}
+        function nextStep(){resetHighlights();if(i>=steps.length)return playBtn.disabled=!1,void(explanationEl.textContent="流程结束。可再次播放。");const e=steps[i];explanationEl.textContent=e.text,e.el.forEach(t=>{const e=svgEl.querySelector(`#${t}`);e&&(e.classList.add("highlight"),"path"===e.tagName.toLowerCase()?(e.style.stroke="#f97316",e.setAttribute("marker-end","url(#arrowhead-h)")):t.includes("node")?e.classList.add("highlight"):"label-update"===t&&(e.style.fill="#c2410c"))}),i++,window.acAnimationTimeoutId=setTimeout(nextStep,1800)}
+        resetHighlights(),nextStep();
+    };
+}
+    
+/**
+ * Chapter 4: PPO Canvas with adjustable Epsilon
+ */
+function initPpoCanvas() {
+    const canvas = document.getElementById('ppo-canvas'); 
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const toggleBtn = document.getElementById('ppo-toggle-advantage');
+    const explanationEl = document.getElementById('ppo-explanation');
+    const epsilonSlider = document.getElementById('epsilon-slider');
+    const epsilonValueEl = document.getElementById('epsilon-value');
+    let advantage = 1;
+    let epsilon = 0.2;
+
+    function drawPpo(){
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+        const r1_x = w * (1 - 0.5) / 1.5;
+        ctx.moveTo(r1_x, 0); ctx.lineTo(r1_x, h);
+        ctx.stroke();
+        ctx.fillStyle = '#64748b';
+        ctx.font = '12px Noto Sans SC';
+        ctx.fillText('r(θ)=1', r1_x - 10, h/2 + 15);
+        ctx.fillText('目标 L', w/2 - 20, 15);
+        
+        // Draw trust region
+        ctx.fillStyle = 'rgba(79, 70, 229, 0.05)';
+        const clip_lower_x = w * (1 - epsilon - 0.5) / 1.5;
+        const clip_upper_x = w * (1 + epsilon - 0.5) / 1.5;
+        ctx.fillRect(clip_lower_x, 0, clip_upper_x - clip_lower_x, h);
+
+        ctx.strokeStyle = '#fca5a5';
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, h/2 - 50 * (1 + epsilon) * advantage);
+        ctx.lineTo(w, h/2 - 50 * (1 + epsilon) * advantage);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, h/2 - 50 * (1 - epsilon) * advantage);
+        ctx.lineTo(w, h/2 - 50 * (1 - epsilon) * advantage);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.strokeStyle = '#4f46e5';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i <= w; i++) {
+            const ratio = 0.5 + (i / w) * 1.5;
+            const y_unclipped = h/2 - 50 * ratio * advantage;
+            let y_clipped = y_unclipped;
+            if (advantage > 0) {
+                y_clipped = Math.max(y_unclipped, h/2 - 50 * (1 + epsilon) * advantage);
+            } else {
+                y_clipped = Math.min(y_unclipped, h/2 - 50 * (1 - epsilon) * advantage);
+            }
+            i === 0 ? ctx.moveTo(i, y_clipped) : ctx.lineTo(i, y_clipped);
+        }
+        ctx.stroke();
+
+        if (advantage > 0) {
+            explanationEl.innerHTML = '当优势 $\\hat{A}_t > 0$ (好动作)时，目标函数被 <span class="text-red-500 font-semibold">向上推动</span>，但被上限裁剪，防止策略过于激进。';
+        } else {
+            explanationEl.innerHTML = '当优势 $\\hat{A}_t < 0$ (坏动作)时，目标函数被 <span class="text-blue-500 font-semibold">向下拉动</span>，但被下限裁剪，防止策略更新过猛。';
+        }
+        if(window.MathJax) MathJax.typesetPromise();
+    }
+    
+    toggleBtn.onclick=()=>{
+        advantage *= -1;
+        toggleBtn.textContent = advantage > 0 ? '切换到 "坏动作" (Â < 0)' : '切换到 "好动作" (Â > 0)';
+        drawPpo();
+    };
+    epsilonSlider.oninput = (e) => {
+        epsilon = parseFloat(e.target.value);
+        epsilonValueEl.textContent = epsilon.toFixed(2);
+        drawPpo();
+    };
+    
+    drawPpo();
+}
+    
+/**
+ * Chapter 5: SAC Canvas with Reward Landscape
+ */
+function initSacCanvas() {
+    const sacCanvas = document.getElementById('sac-canvas'); 
+    if (!sacCanvas) return;
+    const sacCtx = sacCanvas.getContext('2d');
+    const slider = document.getElementById('alpha-slider');
+    const valueDisp = document.getElementById('alpha-value');
+    const explanationEl = document.getElementById('sac-explanation');
+    let alpha = 0.2;
+    
+    const activeAnimationFrames = window.activeAnimationFrames || (window.activeAnimationFrames = {});
+
+    slider.oninput = (e) => {
+        alpha = parseFloat(e.target.value);
+        valueDisp.textContent = alpha.toFixed(2);
+    };
+    
+    function drawRewardLandscape(ctx, w, h) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([2, 3]);
+        for (let x = 0; x < w; x++) {
+            const y = h - (Math.sin(x * 0.05) * 20 + Math.cos(x * 0.15) * 15 + h/2.5);
+            x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    function drawSac() {
+        const w = sacCanvas.width, h = sacCanvas.height;
+        sacCtx.clearRect(0, 0, w, h);
+        drawRewardLandscape(sacCtx, w, h);
+        
+        sacCtx.beginPath();
+        sacCtx.fillStyle = 'rgba(79, 70, 229, 0.5)';
+        const std_dev = 0.05 + alpha * 0.5;
+        const mean = w / 2 + Math.sin(Date.now() * 0.0005) * w/4; // Slowly moving peak
+        
+        for (let x = 0; x < w; x++) {
+            const norm_x = (x - mean) / (w / 4);
+            const y = Math.exp(-0.5 * Math.pow(norm_x / std_dev, 2)) * (h - 20);
+            x === 0 ? sacCtx.moveTo(x, h - y) : sacCtx.lineTo(x, h - y);
+        }
+        sacCtx.lineTo(w, h);
+        sacCtx.lineTo(0, h);
+        sacCtx.closePath();
+        sacCtx.fill();
+        
+        explanationEl.textContent = alpha > 0.5 ? '高α: 策略更平坦, 积极探索' : (alpha < 0.1 ? '低α: 策略更尖锐, 积极利用' : 'α适中: 平衡探索与利用');
+        activeAnimationFrames.sac = requestAnimationFrame(drawSac);
+    }
+    
+    activeAnimationFrames.sac = requestAnimationFrame(drawSac);
+}
+
+/**
+ * Chapter 6: CMDP Lab - Flame Fix
+ */
+function initCmdpLab(){const e=document.getElementById("cmdp-builder-panel");if(!e)return;const t=e.querySelectorAll(".cmdp-checkbox"),l=document.getElementById("air-slider-ch6"),n=document.getElementById("tilt-slider-ch6"),o=document.getElementById("ofa-slider-ch6"),i=document.getElementById("air-value-ch6"),a=document.getElementById("tilt-value-ch6"),s=document.getElementById("ofa-value-ch6"),r=document.getElementById("flame-visual-ch6"),d=document.getElementById("nox-meter-fill-ch6"),c=document.getElementById("co-meter-fill-ch6"),m=document.getElementById("temp-meter-fill-ch6"),u=document.getElementById("efficiency-value-ch6");function g(){if(!l||!n||!o)return;const e=parseFloat(l.value),t=parseFloat(n.value),c=parseFloat(o.value);i&&(i.textContent=e.toFixed(0)),a&&(a.textContent=t.toFixed(0)),s&&(s.textContent=c.toFixed(0));let g=1.1*e-1.6*c+.4*Math.abs(t),h=140-e+.5*Math.abs(e-80),f=60+(e-75)+Math.abs(t),p=1-Math.abs(e-85)/50,E=1-Math.abs(c-35)/40,v=91.5+1.5*p+1*E-h/100;g=Math.max(10,Math.min(100,g)),h=Math.max(5,Math.min(100,h)),f=Math.max(20,Math.min(100,f)),v=Math.max(90,Math.min(94,v)),r&&(r.style.height=`${30+e/100*70}%`,r.style.transform=`translateY(${t*-1.5}px) skewX(${t*-.5}deg)`),d&&(d.style.width=`${g}%`),c&&(c.style.width=`${h}%`),m&&(m.style.width=`${f}%`),u&&(u.textContent=v.toFixed(2))}function h(){t.forEach(e=>{e.addEventListener("change",()=>{const t=e.dataset.target,l=document.getElementById(t);if(!l)return;l.classList.toggle("hidden",!e.checked);const n=e.dataset.type;l.classList.remove("reward-highlight","cost-highlight"),e.checked&&("reward"===n?l.classList.add("reward-highlight"):"cost"===n&&l.classList.add("cost-highlight")),f()})}),l&&l.addEventListener("input",g),n&&n.addEventListener("input",g),o&&o.addEventListener("input",g),f()}function f(){const e={State:[],Action:[],Reward:[],Cost:[]};t.forEach(t=>{if(t.checked){const l=t.parentElement.textContent.trim(),n=t.closest("div.space-y-2").previousElementSibling.textContent;n.includes("状态")?e.State.push(l):n.includes("动作")?e.Action.push(l):n.includes("奖励")?e.Reward.push(l):n.includes("成本")&&e.Cost.push(l)}}),document.getElementById("summary-State-ch6").innerHTML=e.State.map(e=>`<li>${e}</li>`).join("")||"<li>尚未选择</li>",document.getElementById("summary-Action-ch6").innerHTML=e.Action.map(e=>`<li>${e}</li>`).join("")||"<li>尚未选择</li>",document.getElementById("summary-Reward-ch6").innerHTML=e.Reward.map(e=>`<li>${e}</li>`).join("")||"<li>尚未选择</li>",document.getElementById("summary-Cost-ch6").innerHTML=e.Cost.map(e=>`<li>${e}</li>`).join("")||"<li>尚未选择</li>"}h(),g()}
+function initSimRealCanvas(){const e=document.getElementById("sim-real-canvas");if(!e)return;const t=e.getContext("2d");let l=50;const n=document.getElementById("model-quality-slider"),o=document.getElementById("model-quality-value"),i=window.activeAnimationFrames||(window.activeAnimationFrames={});n&&(n.oninput=e=>{l=parseInt(e.target.value),o.textContent=l});const a=()=>{const n=e.width,o=e.height;t.clearRect(0,0,n,o);const s=Date.now()*.0005;t.beginPath(),t.strokeStyle="#1e293b",t.lineWidth=3;for(let e=0;e<n;e++){const l=o/2+Math.sin(.03*e+s)*o/6+Math.cos(.07*e+s)*o/8;0===e?t.moveTo(e,l):t.lineTo(e,l)}t.stroke(),t.beginPath(),t.strokeStyle="#3b82f6",t.lineWidth=2,t.setLineDash([5,5]);const r=(100-l)/100*o/3;for(let e=0;e<n;e++){const l=o/2+Math.sin(.03*e+s)*o/6+Math.cos(.07*e+s)*o/8,i=l+(.5-Math.random())*r;0===e?t.moveTo(e,i):t.lineTo(e,i)}t.stroke(),t.setLineDash([]),i.simReal=requestAnimationFrame(a)};i.simReal=requestAnimationFrame(a)}
+function initSim(){const e=document.getElementById("rl-canvas");if(!e)return;const t=e.getContext("2d"),l=document.getElementById("rewardChart").getContext("2d"),n=window.activeAnimationFrames||(window.activeAnimationFrames={});let o,i,a,s,r,d,c=8,m={x:c-1,y:c-1},u=[{x:2,y:2},{x:2,y:3},{x:3,y:2},{x:5,y:5},{x:6,y:5}],g=[];const h={gamma:.9,lr:.1,epsilon:.2};function f(){n.rl&&cancelAnimationFrame(n.rl),e.width=e.offsetWidth,e.height=e.offsetHeight,o=e.width/c,i={x:0,y:0},a=Array(c).fill(0).map(()=>Array(c).fill(0).map(()=>[0,0,0,0])),s=0,r=0,g=[],E(),v(),p()}function p(){s<1e3?(function(){for(let e=0;e<10;e++)w()}() ,y(),n.rl=requestAnimationFrame(p)):y()}function y(){if(!t)return;t.clearRect(0,0,e.width,e.height);for(let l=0;l<c;l++)for(let n=0;n<c;n++){const e=Math.max(...a[l][n]),i=e>.1?Math.min(1,e/50):0,s=u.some(e=>e.x===n&&e.y===l)?220:255-150*i,d=m.x===n&&m.y===l?220:220+30*i,f=u.some(e=>e.x===n&&e.y===l)?100:220-100*i;t.fillStyle=`rgb(${Math.floor(s)}, ${Math.floor(d)}, ${Math.floor(f)})`,t.fillRect(n*o,l*o,o,o),s>50&&e>.1&&(t.fillStyle="rgba(0, 0, 0, 0.6)",t.font=`${.4*o}px sans-serif`,t.textAlign="center",t.textBaseline="middle",t.fillText(["↑","↓","←","→"][a[l][n].indexOf(e)],n*o+o/2,l*o+o/2))}t.font=`${.6*o}px sans-serif`,t.textAlign="center",t.textBaseline="middle",t.fillText("S",o/2,o/2),t.fillText("🏆",m.x*o+o/2,m.y*o+o/2),u.forEach(e=>t.fillText("☠️",e.x*o+o/2,e.y*o+o/2)),t.fillStyle="#3b82f6",t.beginPath(),t.arc(i.x*o+o/2,i.y*o+o/2,o/3.5,0,2*Math.PI),t.fill()}function w(){i={x:0,y:0};let e=0,t=0,l=!1;for(;!l&&t<50;){const n={x:i.x,y:i.y},o=b(n),d=x(n,o),f=k(d),p=a[n.y][n.x][o],y=Math.max(...a[d.y][d.x]);a[n.y][n.x][o]=p+h.lr*(f+h.gamma*y-p),i=d,e+=f,t++,(i.x===m.x&&i.y===m.y||u.some(e=>e.x===i.x&&e.y===i.y))&&(l=!0)}s++,g.push(e),C(),L()}function b(e){return Math.random()<h.epsilon?Math.floor(4*Math.random()):a[e.y][e.x].indexOf(Math.max(...a[e.y][e.x]))}function x(e,t){let{x:l,y:n}=e;return 0===t?n=Math.max(0,n-1):1===t?n=Math.min(c-1,n+1):2===t?l=Math.max(0,l-1):3===t&&(l=Math.min(c-1,l+1)),{x:l,y:n}}function k(e){return e.x===m.x&&e.y===m.y?100:u.some(t=>t.x===e.x&&t.y===e.y)?-100:-1}function v(){d&&d.destroy(),d=new Chart(l,{type:"line",data:{labels:[],datasets:[{label:"最近10回合平均奖励",data:[],borderColor:"#16a34a",tension:.2,pointRadius:0,fill:!0,backgroundColor:"rgba(22, 163, 74, 0.1)"}]},options:{responsive:!0,maintainAspectRatio:!1,scales:{x:{display:!1},y:{title:{display:!0,text:"奖励"}}},plugins:{legend:{display:!1}}}})}function C(){if(!d||s%10!=0)return;const e=g.slice(-10);r=e.reduce((e,t)=>e+t,0)/e.length,d.data.labels.push(s),d.data.datasets[0].data.push(r),d.data.labels.length>100&&(d.data.labels.shift(),d.data.datasets[0].data.shift()),d.update("none")}function L(){document.getElementById("episode-counter").textContent=s,document.getElementById("total-reward").textContent=r.toFixed(2)}function E(){document.getElementById("gamma-value").textContent=h.gamma,document.getElementById("lr-value").textContent=h.lr,document.getElementById("epsilon-value").textContent=h.epsilon}document.getElementById("start-sim").onclick=f,document.getElementById("gamma").oninput=e=>{h.gamma=parseFloat(e.target.value),E()},document.getElementById("lr").oninput=e=>{h.lr=parseFloat(e.target.value),E()},document.getElementById("epsilon").oninput=e=>{h.epsilon=parseFloat(e.target.value),E()},f()}
+function selectStep(e){const t=document.getElementById("step-content");if(!t)return;const l={1:{title:"阶段一：建议模式 (Advisory Mode)",description:"RL智能体以“影子模式”运行，实时接收电厂数据并计算最优动作。但这些动作并<strong>不</strong>直接执行，而是作为操作建议显示在操作员站的界面上，由人工确认执行。",goals:["在零风险下验证AI策略的长期性能。","让操作员逐步熟悉和信任AI的决策逻辑。","收集对比数据，量化AI相比人工操作的提升。"],risk_mitigation:"操作员拥有100%的最终控制权，AI无任何执行能力，实现绝对安全。"},2:{title:"阶段二：监督控制 (Supervisory Control)",description:"AI的输出不再是直接的阀门动作，而是调整DCS中现有PID控制回路的<strong>设定值</strong>（Setpoint）。例如，AI决定将二次风PID的目标从50%调整到55%。",goals:["在不改变底层成熟控制结构的前提下实现优化。","利用现有DCS系统的稳定性和安全联锁作为坚固的底层安全网。","在真实反馈下对模型进行在线微调。"],risk_mitigation:"智能体的作用范围被限制在高层设定值，底层的快速调节和安全保护仍由现有PID系统完成，动作平缓且可控。"},3:{title:"阶段三：直接控制 (Direct Control)",description:"这是最终阶段，AI获得对执行器的直接控制权。但其输出的所有指令在发送给DCS之前，必须强制通过一个最终的、硬编码的<strong>安全层 (Safety Layer)</strong>。",goals:["实现完全的自主优化，发挥RL策略的最大潜力。","对工况变化做出最快速、最直接的响应。"],risk_mitigation:"“安全层”是一个非AI的简单规则程序，它会检查AI的每一个指令，否决任何可能违反硬性安全约束（如温度、压力、变化速率越限）的动作，是对抗AI不可预见行为的最后一道防线。"}};for(let n=1;n<=3;n++){const o=document.getElementById(`step${n}`);o&&o.classList.toggle("active",n===e)}const n=l[e];n&&(t.innerHTML=`<h3 class="text-xl font-bold mb-4">${n.title}</h3><p class="text-slate-600 mb-4">${n.description}</p><h4 class="font-bold text-lg mb-2">主要目标:</h4><ul class="list-disc list-inside space-y-1 text-slate-600 mb-4">${n.goals.map(e=>`<li>${e}</li>`).join("")}</ul><h4 class="font-bold text-lg mb-2">风险控制:</h4><p class="p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg">${n.risk_mitigation}</p>`)}
+</script>
+</body>
+</html>
